@@ -1,0 +1,1381 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>车牌识别系统 - 完整开发指南</title>
+<style>
+  :root {
+    --bg: #1a1b26;
+    --bg-card: #24283b;
+    --bg-code: #1e2030;
+    --fg: #c0caf5;
+    --fg-dim: #565f89;
+    --fg-bright: #c0caf5;
+    --accent: #7aa2f7;
+    --accent2: #bb9af7;
+    --green: #9ece6a;
+    --yellow: #e0af68;
+    --red: #f7768e;
+    --cyan: #7dcfff;
+    --orange: #ff9e64;
+    --border: #3b4261;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+    line-height: 1.8;
+    font-size: 15px;
+  }
+
+  /* 导航栏 */
+  .sidebar {
+    position: fixed; left: 0; top: 0; width: 280px; height: 100vh;
+    background: var(--bg-card); border-right: 1px solid var(--border);
+    overflow-y: auto; padding: 20px 0; z-index: 100;
+  }
+  .sidebar h2 {
+    font-size: 16px; color: var(--accent); padding: 0 24px 16px;
+    border-bottom: 1px solid var(--border); margin-bottom: 12px;
+  }
+  .sidebar a {
+    display: block; padding: 8px 24px; color: var(--fg-dim);
+    text-decoration: none; font-size: 13.5px; transition: all 0.2s;
+    border-left: 3px solid transparent;
+  }
+  .sidebar a:hover { color: var(--accent); background: rgba(122,162,247,0.08); }
+  .sidebar a.active { color: var(--accent); border-left-color: var(--accent); background: rgba(122,162,247,0.08); }
+  .sidebar a.sub { padding-left: 40px; font-size: 13px; }
+
+  .main { margin-left: 280px; padding: 48px 56px; max-width: 1100px; }
+
+  h1 { font-size: 32px; color: var(--fg-bright); margin-bottom: 8px; }
+  h2 {
+    font-size: 24px; color: var(--accent); margin-top: 56px;
+    margin-bottom: 20px; padding-bottom: 12px; border-bottom: 2px solid var(--border);
+  }
+  h3 { font-size: 19px; color: var(--accent2); margin-top: 36px; margin-bottom: 14px; }
+  h4 { font-size: 16px; color: var(--cyan); margin-top: 24px; margin-bottom: 10px; }
+  p { margin-bottom: 14px; color: var(--fg); }
+  ul, ol { margin: 12px 0 14px 28px; }
+  li { margin-bottom: 6px; }
+  strong { color: var(--yellow); }
+  code.inline {
+    background: var(--bg-code); padding: 2px 7px; border-radius: 4px;
+    font-size: 13px; color: var(--green); font-family: "Cascadia Code", "Consolas", monospace;
+  }
+
+  /* 代码块 */
+  pre {
+    background: var(--bg-code); border-radius: 10px; padding: 20px 24px;
+    overflow-x: auto; margin: 16px 0; border: 1px solid var(--border);
+    position: relative;
+  }
+  pre .filename {
+    position: absolute; top: 0; right: 0; padding: 4px 14px;
+    background: var(--border); border-radius: 0 10px 0 8px;
+    font-size: 12px; color: var(--fg-dim); font-family: "Cascadia Code", monospace;
+  }
+  pre code {
+    font-family: "Cascadia Code", "Consolas", "Fira Code", monospace;
+    font-size: 13px; line-height: 1.65; color: var(--fg);
+  }
+  .kw { color: var(--red); }
+  .str { color: var(--green); }
+  .com { color: var(--fg-dim); font-style: italic; }
+  .fn { color: var(--blue); color: #7aa2f7; }
+  .num { color: var(--orange); }
+  .cls { color: var(--yellow); }
+  .dec { color: var(--cyan); }
+
+  /* 卡片 */
+  .card {
+    background: var(--bg-card); border-radius: 12px; padding: 24px;
+    margin: 20px 0; border: 1px solid var(--border);
+  }
+  .card-title { font-size: 16px; color: var(--accent); margin-bottom: 12px; font-weight: 600; }
+
+  /* 表格 */
+  table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+  th { background: var(--bg-card); color: var(--accent); padding: 12px 16px;
+       text-align: left; border-bottom: 2px solid var(--border); font-size: 14px; }
+  td { padding: 10px 16px; border-bottom: 1px solid var(--border); font-size: 14px; color: var(--fg); }
+  tr:hover td { background: rgba(122,162,247,0.05); }
+
+  /* 提示框 */
+  .tip { border-left: 4px solid var(--green); background: rgba(158,206,106,0.08); }
+  .warn { border-left: 4px solid var(--yellow); background: rgba(224,175,104,0.08); }
+  .tip, .warn { border-radius: 8px; padding: 16px 20px; margin: 16px 0; }
+
+  /* 流程图 */
+  .flow-diagram { margin: 24px 0; }
+  .step-badge {
+    display: inline-block; background: var(--accent); color: var(--bg);
+    padding: 2px 10px; border-radius: 12px; font-size: 12px; font-weight: 700;
+    margin-right: 8px;
+  }
+
+  /* 文件树 */
+  .tree {
+    background: var(--bg-code); border-radius: 10px; padding: 20px 24px;
+    font-family: "Cascadia Code", monospace; font-size: 13.5px; line-height: 1.8;
+    border: 1px solid var(--border); margin: 16px 0;
+  }
+  .tree .dir { color: var(--accent); font-weight: 600; }
+  .tree .file { color: var(--fg); }
+  .tree .desc { color: var(--fg-dim); }
+
+  .badge { display: inline-block; padding: 3px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; }
+  .badge-green { background: rgba(158,206,106,0.2); color: var(--green); }
+  .badge-yellow { background: rgba(224,175,104,0.2); color: var(--yellow); }
+  .badge-red { background: rgba(247,118,142,0.2); color: var(--red); }
+  .badge-blue { background: rgba(122,162,247,0.2); color: var(--accent); }
+</style>
+</head>
+<body>
+
+<!-- 侧边导航 -->
+<nav class="sidebar">
+  <h2>开发指南目录</h2>
+  <a href="#overview">项目概述</a>
+  <a href="#architecture">系统架构</a>
+  <a href="#env">环境搭建</a>
+  <a href="#structure">项目结构</a>
+  <a href="#step1">Step 1: 配置文件</a>
+  <a href="#step2">Step 2: 工具函数</a>
+  <a href="#step3">Step 3: 图像预处理</a>
+  <a href="#step4">Step 4: 车牌定位</a>
+  <a href="#step5">Step 5: 倾斜校正</a>
+  <a href="#step6">Step 6: 字符分割</a>
+  <a href="#step7">Step 7: 字符识别</a>
+  <a href="#step8">Step 8: 流水线集成</a>
+  <a href="#step9">Step 9: Streamlit 界面</a>
+  <a href="#step10">Step 10: 数据准备</a>
+  <a href="#step11">Step 11: 模型训练</a>
+  <a href="#step12">Step 12: 测试评估</a>
+  <a href="#run">运行指南</a>
+  <a href="#faq">常见问题</a>
+</nav>
+
+<div class="main">
+
+<!-- ==================== 概述 ==================== -->
+<h1 id="overview">车牌识别系统 — 完整开发指南</h1>
+<p style="color:var(--fg-dim);font-size:16px;">数字图像处理课程设计 · Python + OpenCV · 端到端流水线</p>
+
+<div class="card">
+  <div class="card-title">项目简介</div>
+  <p>本项目实现了一个端到端的车牌识别系统，覆盖从图像输入到车牌号输出的完整流水线。系统分为五个核心阶段：<strong>图像预处理 → 车牌定位 → 倾斜校正 → 字符分割 → 字符识别</strong>，每个阶段使用经典的数字图像处理算法实现。</p>
+  <table>
+    <tr><th>维度</th><th>说明</th></tr>
+    <tr><td>技术栈</td><td>Python 3.10+ / OpenCV / NumPy / scikit-learn / Streamlit</td></tr>
+    <tr><td>识别方法</td><td>模板匹配（开箱即用）/ SVM / CNN（需训练）</td></tr>
+    <tr><td>车牌类型</td><td>蓝牌、绿牌（新能源）、黄牌</td></tr>
+    <tr><td>字符集</td><td>31 省份汉字 + 24 字母（不含 I/O）+ 10 数字 = 65 类</td></tr>
+    <tr><td>数据集</td><td>CCPD（30 万+ 中国车牌图像，开源）</td></tr>
+    <tr><td>界面</td><td>Streamlit 交互式可视化，展示每阶段中间结果</td></tr>
+  </table>
+</div>
+
+<!-- ==================== 架构 ==================== -->
+<h2 id="architecture">系统架构</h2>
+
+<div class="flow-diagram">
+<svg viewBox="0 0 1000 360" style="width:100%;border-radius:12px;background:var(--bg-code);border:1px solid var(--border);">
+  <defs>
+    <linearGradient id="g1" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#7aa2f7"/><stop offset="1" stop-color="#7dcfff"/>
+    </linearGradient>
+    <linearGradient id="g2" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#bb9af7"/><stop offset="1" stop-color="#7aa2f7"/>
+    </linearGradient>
+    <linearGradient id="g3" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#9ece6a"/><stop offset="1" stop-color="#7dcfff"/>
+    </linearGradient>
+    <linearGradient id="g4" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#e0af68"/><stop offset="1" stop-color="#bb9af7"/>
+    </linearGradient>
+    <linearGradient id="g5" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#f7768e"/><stop offset="1" stop-color="#e0af68"/>
+    </linearGradient>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#565f89"/>
+    </marker>
+  </defs>
+
+  <!-- 输入 -->
+  <rect x="10" y="140" width="100" height="60" rx="10" fill="#24283b" stroke="#565f89" stroke-width="1.5"/>
+  <text x="60" y="168" text-anchor="middle" fill="#c0caf5" font-size="13" font-family="sans-serif">车辆图像</text>
+  <text x="60" y="186" text-anchor="middle" fill="#565f89" font-size="11" font-family="sans-serif">输入</text>
+  <line x1="110" y1="170" x2="145" y2="170" stroke="#565f89" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- Stage 1 -->
+  <rect x="150" y="140" width="120" height="60" rx="10" fill="url(#g1)" opacity="0.85"/>
+  <text x="210" y="165" text-anchor="middle" fill="#1a1b26" font-size="13" font-weight="700" font-family="sans-serif">Stage 1</text>
+  <text x="210" y="185" text-anchor="middle" fill="#1a1b26" font-size="12" font-family="sans-serif">图像预处理</text>
+  <line x1="270" y1="170" x2="305" y2="170" stroke="#565f89" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- Stage 2 -->
+  <rect x="310" y="140" width="120" height="60" rx="10" fill="url(#g2)" opacity="0.85"/>
+  <text x="370" y="165" text-anchor="middle" fill="#1a1b26" font-size="13" font-weight="700" font-family="sans-serif">Stage 2</text>
+  <text x="370" y="185" text-anchor="middle" fill="#1a1b26" font-size="12" font-family="sans-serif">车牌定位</text>
+  <line x1="430" y1="170" x2="465" y2="170" stroke="#565f89" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- Stage 3 -->
+  <rect x="470" y="140" width="120" height="60" rx="10" fill="url(#g3)" opacity="0.85"/>
+  <text x="530" y="165" text-anchor="middle" fill="#1a1b26" font-size="13" font-weight="700" font-family="sans-serif">Stage 3</text>
+  <text x="530" y="185" text-anchor="middle" fill="#1a1b26" font-size="12" font-family="sans-serif">倾斜校正</text>
+  <line x1="590" y1="170" x2="625" y2="170" stroke="#565f89" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- Stage 4 -->
+  <rect x="630" y="140" width="120" height="60" rx="10" fill="url(#g4)" opacity="0.85"/>
+  <text x="690" y="165" text-anchor="middle" fill="#1a1b26" font-size="13" font-weight="700" font-family="sans-serif">Stage 4</text>
+  <text x="690" y="185" text-anchor="middle" fill="#1a1b26" font-size="12" font-family="sans-serif">字符分割</text>
+  <line x1="750" y1="170" x2="785" y2="170" stroke="#565f89" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- Stage 5 -->
+  <rect x="790" y="140" width="120" height="60" rx="10" fill="url(#g5)" opacity="0.85"/>
+  <text x="850" y="165" text-anchor="middle" fill="#1a1b26" font-size="13" font-weight="700" font-family="sans-serif">Stage 5</text>
+  <text x="850" y="185" text-anchor="middle" fill="#1a1b26" font-size="12" font-family="sans-serif">字符识别</text>
+  <line x1="910" y1="170" x2="945" y2="170" stroke="#565f89" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- 输出 -->
+  <rect x="940" y="140" width="50" height="60" rx="10" fill="#24283b" stroke="#9ece6a" stroke-width="1.5"/>
+  <text x="965" y="175" text-anchor="middle" fill="#9ece6a" font-size="14" font-weight="700" font-family="sans-serif">车牌号</text>
+
+  <!-- 底部算法标注 -->
+  <text x="210" y="235" text-anchor="middle" fill="#565f89" font-size="11" font-family="sans-serif">双边滤波 · CLAHE</text>
+  <text x="370" y="235" text-anchor="middle" fill="#565f89" font-size="11" font-family="sans-serif">HSV颜色 · 形态学 · 轮廓</text>
+  <text x="530" y="235" text-anchor="middle" fill="#565f89" font-size="11" font-family="sans-serif">Hough直线 · 仿射变换</text>
+  <text x="690" y="235" text-anchor="middle" fill="#565f89" font-size="11" font-family="sans-serif">Otsu · 垂直投影分割</text>
+  <text x="850" y="235" text-anchor="middle" fill="#565f89" font-size="11" font-family="sans-serif">模板匹配 · SVM · CNN</text>
+
+  <!-- 底部模块标注 -->
+  <text x="210" y="260" text-anchor="middle" fill="#7aa2f7" font-size="12" font-family="monospace">preprocess.py</text>
+  <text x="370" y="260" text-anchor="middle" fill="#bb9af7" font-size="12" font-family="monospace">plate_locator.py</text>
+  <text x="530" y="260" text-anchor="middle" fill="#9ece6a" font-size="12" font-family="monospace">skew_correction.py</text>
+  <text x="690" y="260" text-anchor="middle" fill="#e0af68" font-size="12" font-family="monospace">char_segmentation.py</text>
+  <text x="850" y="260" text-anchor="middle" fill="#f7768e" font-size="12" font-family="monospace">char_recognition.py</text>
+
+  <!-- 数据集和训练 -->
+  <rect x="150" y="295" width="760" height="45" rx="8" fill="none" stroke="#3b4261" stroke-dasharray="5,3"/>
+  <text x="530" y="322" text-anchor="middle" fill="#565f89" font-size="12" font-family="sans-serif">CCPD 数据集 → prepare_ccpd.py → train_svm.py / train_cnn.py → 模型文件</text>
+</svg>
+</div>
+
+<div class="card">
+  <div class="card-title">各阶段核心算法一览</div>
+  <table>
+    <tr><th>阶段</th><th>核心算法</th><th>关键 OpenCV 函数</th><th>DIP 知识点</th></tr>
+    <tr><td><span class="badge badge-blue">预处理</span></td><td>双边滤波 + CLAHE 对比度增强</td><td><code class="inline">bilateralFilter</code>, <code class="inline">createCLAHE</code></td><td>空域滤波、直方图均衡化</td></tr>
+    <tr><td><span class="badge badge-blue">定位</span></td><td>HSV 颜色过滤 + 形态学闭操作 + 轮廓筛选</td><td><code class="inline">inRange</code>, <code class="inline">morphologyEx</code>, <code class="inline">findContours</code></td><td>颜色空间、形态学运算、轮廓分析</td></tr>
+    <tr><td><span class="badge badge-green">校正</span></td><td>Hough 直线检测 + 仿射变换旋转</td><td><code class="inline">HoughLinesP</code>, <code class="inline">getRotationMatrix2D</code></td><td>Hough 变换、几何变换</td></tr>
+    <tr><td><span class="badge badge-yellow">分割</span></td><td>Otsu 二值化 + 垂直投影法</td><td><code class="inline">threshold</code>, <code class="inline">connectedComponentsWithStats</code></td><td>阈值分割、投影分析</td></tr>
+    <tr><td><span class="badge badge-red">识别</span></td><td>模板匹配 / SVM / CNN</td><td><code class="inline">matchTemplate</code>, <code class="inline">HOGDescriptor</code></td><td>模式识别、特征提取、分类器</td></tr>
+  </table>
+</div>
+
+<!-- ==================== 环境 ==================== -->
+<h2 id="env">环境搭建</h2>
+
+<div class="card">
+  <div class="card-title">系统要求</div>
+  <ul>
+    <li><strong>Python</strong> 3.10+</li>
+    <li><strong>OpenCV</strong> 4.8+ (核心依赖)</li>
+    <li><strong>操作系统</strong>: Windows / macOS / Linux 均可</li>
+  </ul>
+</div>
+
+<h3>安装依赖</h3>
+<pre><span class="filename">requirements.txt</span><code><span class="com"># 核心依赖 (必装)</span>
+opencv-python<span class="kw">>=</span><span class="num">4.8</span><span class="num">.0</span>
+numpy<span class="kw">>=</span><span class="num">1.24</span><span class="num">.0</span>
+scikit-learn<span class="kw">>=</span><span class="num">1.3</span><span class="num">.0</span>
+scikit-image<span class="kw">>=</span><span class="num">0.21</span><span class="num">.0</span>
+streamlit<span class="kw">>=</span><span class="num">1.28</span><span class="num">.0</span>
+Pillow<span class="kw">>=</span><span class="num">10.0</span><span class="num">.0</span>
+
+<span class="com"># CNN 识别方法 (可选)</span>
+<span class="com"># torch>=2.0.0</span>
+<span class="com"># torchvision>=0.15.0</span>
+</code></pre>
+
+<pre><code><span class="com"># 1. 创建虚拟环境</span>
+python -m venv venv
+
+<span class="com"># 2. 激活虚拟环境</span>
+<span class="com"># Windows:</span>
+venv\Scripts\activate
+<span class="com"># macOS/Linux:</span>
+source venv/bin/activate
+
+<span class="com"># 3. 安装依赖</span>
+pip install -r requirements.txt
+
+<span class="com"># 4. (可选) 安装 PyTorch 用于 CNN</span>
+pip install torch torchvision
+</code></pre>
+
+<!-- ==================== 项目结构 ==================== -->
+<h2 id="structure">项目结构</h2>
+
+<div class="tree">
+<span class="dir">车牌识别系统/</span>
+├── <span class="dir">lpr/</span>                          <span class="desc"># 核心算法包</span>
+│   ├── __init__.py                   <span class="desc"># 包初始化</span>
+│   ├── <span class="file">config.py</span>                   <span class="desc"># 全局配置，所有参数集中管理</span>
+│   ├── <span class="file">utils.py</span>                    <span class="desc"># 工具函数 (计时、透视变换、NMS 等)</span>
+│   ├── <span class="file">preprocess.py</span>               <span class="desc"># Stage 1: 图像预处理</span>
+│   ├── <span class="file">plate_locator.py</span>            <span class="desc"># Stage 2: 车牌定位</span>
+│   ├── <span class="file">skew_correction.py</span>          <span class="desc"># Stage 3: 倾斜校正</span>
+│   ├── <span class="file">char_segmentation.py</span>        <span class="desc"># Stage 4: 字符分割</span>
+│   ├── <span class="file">char_recognition.py</span>         <span class="desc"># Stage 5: 字符识别</span>
+│   └── <span class="file">pipeline.py</span>                 <span class="desc"># 端到端流水线 (串联五阶段)</span>
+├── <span class="dir">scripts/</span>                       <span class="desc"># 辅助脚本</span>
+│   ├── <span class="file">prepare_ccpd.py</span>             <span class="desc"># CCPD 数据集解析与准备</span>
+│   ├── <span class="file">generate_templates.py</span>       <span class="desc"># 字符模板生成</span>
+│   ├── <span class="file">train_svm.py</span>                <span class="desc"># SVM 模型训练</span>
+│   ├── <span class="file">train_cnn.py</span>                <span class="desc"># CNN 模型训练</span>
+│   ├── <span class="file">batch_test.py</span>               <span class="desc"># 批量测试</span>
+│   └── <span class="file">evaluate.py</span>                 <span class="desc"># 模型评估与报告生成</span>
+├── <span class="file">app.py</span>                         <span class="desc"># Streamlit 可视化界面</span>
+├── <span class="file">requirements.txt</span>                <span class="desc"># 依赖列表</span>
+├── <span class="file">README.md</span>                      <span class="desc"># 项目文档</span>
+├── <span class="file">DATASET_GUIDE.md</span>               <span class="desc"># 数据集获取指南</span>
+├── <span class="dir">data/</span>                          <span class="desc"># 数据目录 (运行时生成)</span>
+│   ├── <span class="dir">templates/</span>                   <span class="desc"># 字符模板</span>
+│   ├── <span class="dir">train/</span> <span class="dir">val/</span> <span class="dir">test/</span>     <span class="desc"># 训练/验证/测试集</span>
+│   └── <span class="dir">test_images/</span>                 <span class="desc"># 测试图片</span>
+├── <span class="dir">models/</span>                        <span class="desc"># 训练好的模型</span>
+└── <span class="dir">output/</span>                        <span class="desc"># 输出结果</span>
+</div>
+
+<!-- ==================== Step 1 ==================== -->
+<h2 id="step1"><span class="step-badge">Step 1</span>配置文件 config.py</h2>
+<p>所有可调参数集中管理，方便实验对比和调优。采用字典分组的方式组织不同阶段的配置。</p>
+
+<pre><span class="filename">lpr/config.py</span><code><span class="kw">import</span> os
+<span class="kw">from</span> pathlib <span class="kw">import</span> Path
+
+<span class="com"># ============================================================</span>
+<span class="com"># 路径配置</span>
+<span class="com"># ============================================================</span>
+BASE_DIR = Path(__file__).resolve().parent.parent
+DATA_DIR = BASE_DIR / <span class="str">"data"</span>
+OUTPUT_DIR = BASE_DIR / <span class="str">"output"</span>
+TEMPLATE_DIR = DATA_DIR / <span class="str">"templates"</span>
+TEST_IMAGES_DIR = DATA_DIR / <span class="str">"test_images"</span>
+
+<span class="com"># Stage 1: 图像预处理参数</span>
+PREPROCESS_CONFIG = {
+    <span class="str">"clahe_clip_limit"</span>: <span class="num">2.0</span>,         <span class="com"># CLAHE 对比度限制</span>
+    <span class="str">"clahe_grid_size"</span>: (<span class="num">8</span>, <span class="num">8</span>),      <span class="com"># CLAHE 网格大小</span>
+    <span class="str">"bilateral_d"</span>: <span class="num">9</span>,                <span class="com"># 双边滤波邻域直径</span>
+    <span class="str">"bilateral_sigma_color"</span>: <span class="num">75</span>,     <span class="com"># 颜色空间标准差</span>
+    <span class="str">"bilateral_sigma_space"</span>: <span class="num">75</span>,     <span class="com"># 坐标空间标准差</span>
+}
+
+<span class="com"># Stage 2: 车牌定位参数</span>
+PLATE_LOCATOR_CONFIG = {
+    <span class="com"># 蓝牌 HSV 范围</span>
+    <span class="str">"blue_lower"</span>: (<span class="num">100</span>, <span class="num">60</span>, <span class="num">60</span>),
+    <span class="str">"blue_upper"</span>: (<span class="num">124</span>, <span class="num">255</span>, <span class="num">255</span>),
+    <span class="com"># 绿牌 (新能源)</span>
+    <span class="str">"green_lower"</span>: (<span class="num">35</span>, <span class="num">60</span>, <span class="num">60</span>),
+    <span class="str">"green_upper"</span>: (<span class="num">99</span>, <span class="num">255</span>, <span class="num">255</span>),
+    <span class="com"># 黄牌</span>
+    <span class="str">"yellow_lower"</span>: (<span class="num">15</span>, <span class="num">60</span>, <span class="num">60</span>),
+    <span class="str">"yellow_upper"</span>: (<span class="num">34</span>, <span class="num">255</span>, <span class="num">255</span>),
+    <span class="com"># 形态学</span>
+    <span class="str">"morph_kernel_size"</span>: (<span class="num">25</span>, <span class="num">10</span>),
+    <span class="com"># 轮廓筛选</span>
+    <span class="str">"min_plate_area"</span>: <span class="num">1500</span>,
+    <span class="str">"max_plate_area"</span>: <span class="num">50000</span>,
+    <span class="str">"min_aspect_ratio"</span>: <span class="num">1.5</span>,
+    <span class="str">"max_aspect_ratio"</span>: <span class="num">6.0</span>,
+}
+
+<span class="com"># Stage 3: 倾斜校正参数</span>
+SKEW_CORRECTION_CONFIG = {
+    <span class="str">"hough_threshold"</span>: <span class="num">30</span>,
+    <span class="str">"min_line_length"</span>: <span class="num">20</span>,
+    <span class="str">"max_line_gap"</span>: <span class="num">5</span>,
+    <span class="str">"max_skew_angle"</span>: <span class="num">20.0</span>,
+    <span class="str">"enable"</span>: <span class="kw">True</span>,
+}
+
+<span class="com"># Stage 4: 字符分割参数</span>
+CHAR_SEGMENTATION_CONFIG = {
+    <span class="str">"resize_width"</span>: <span class="num">240</span>,             <span class="com"># 车牌标准化宽度</span>
+    <span class="str">"resize_height"</span>: <span class="num">80</span>,             <span class="com"># 车牌标准化高度</span>
+    <span class="str">"projection_threshold_ratio"</span>: <span class="num">0.3</span>, <span class="com"># 投影阈值比例</span>
+    <span class="str">"min_char_width"</span>: <span class="num">8</span>,
+    <span class="str">"max_char_width"</span>: <span class="num">35</span>,
+    <span class="str">"char_resize"</span>: (<span class="num">20</span>, <span class="num">28</span>),       <span class="com"># 字符标准化大小</span>
+}
+
+<span class="com"># Stage 5: 字符识别参数</span>
+CHAR_RECOGNITION_CONFIG = {
+    <span class="str">"method"</span>: <span class="str">"template"</span>,               <span class="com"># "template" | "svm" | "cnn"</span>
+    <span class="str">"provinces"</span>: <span class="kw">list</span>(<span class="str">"京津沪渝冀晋蒙辽吉黑苏浙皖闽赣鲁豫鄂湘粤桂琼川贵云藏陕甘青宁新"</span>),
+    <span class="str">"digits"</span>: <span class="kw">list</span>(<span class="str">"0123456789"</span>),
+    <span class="str">"letters"</span>: <span class="kw">list</span>(<span class="str">"ABCDEFGHJKLMNPQRSTUVWXYZ"</span>),  <span class="com"># 不含 I, O</span>
+    <span class="str">"template_match_method"</span>: <span class="str">"cv2.TM_CCOEFF_NORMED"</span>,
+    <span class="str">"svm_model_path"</span>: <span class="str">"models/svm_model.pkl"</span>,
+    <span class="str">"cnn_model_path"</span>: <span class="str">"models/cnn_model.pth"</span>,
+}
+
+OUTPUT_DIR.mkdir(parents=<span class="kw">True</span>, exist_ok=<span class="kw">True</span>)
+</code></pre>
+
+<div class="tip">
+  <strong>设计要点：</strong>将所有参数集中在 <code class="inline">config.py</code> 中，而非硬编码在各模块里。这样做的好处是：<br>
+  1. 实验调参时只需改一个文件；<br>
+  2. 不同实验可以传入不同的 config 副本进行对比；<br>
+  3. 课程报告中可以清晰地列出参数配置表。
+</div>
+
+<!-- ==================== Step 2 ==================== -->
+<h2 id="step2"><span class="step-badge">Step 2</span>工具函数 utils.py</h2>
+<p>提供跨模块共享的工具函数，包括非侵入式计时装饰器、图像格式转换、透视变换、NMS、结果绘制和车牌格式校验。</p>
+
+<pre><span class="filename">lpr/utils.py</span><code><span class="kw">import</span> cv2
+<span class="kw">import</span> numpy <span class="kw">as</span> np
+<span class="kw">import</span> time
+<span class="kw">from</span> functools <span class="kw">import</span> wraps
+
+
+<span class="kw">def</span> <span class="fn">timer</span>(func):
+    <span class="str">"""非侵入式计时装饰器，时间存储在实例的 _timings 字典中"""</span>
+    <span class="kw">@wraps</span>(func)
+    <span class="kw">def</span> <span class="fn">wrapper</span>(*args, **kwargs):
+        start = time.perf_counter()
+        result = func(*args, **kwargs)
+        elapsed = (time.perf_counter() - start) * <span class="num">1000</span>
+        <span class="kw">if</span> args <span class="kw">and</span> <span class="fn">hasattr</span>(args[<span class="num">0</span>], <span class="str">'_timings'</span>):
+            args[<span class="num">0</span>]._timings[func.__name__] = elapsed
+        <span class="kw">return</span> result
+    <span class="kw">return</span> wrapper
+
+
+<span class="kw">def</span> <span class="fn">to_gray</span>(image):
+    <span class="str">"""BGR 转灰度图"""</span>
+    <span class="kw">if</span> <span class="fn">len</span>(image.shape) == <span class="num">3</span>:
+        <span class="kw">return</span> cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    <span class="kw">return</span> image.copy()
+
+
+<span class="kw">def</span> <span class="fn">to_hsv</span>(image):
+    <span class="str">"""BGR 转 HSV"""</span>
+    <span class="kw">return</span> cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+
+
+<span class="kw">def</span> <span class="fn">order_points</span>(pts):
+    <span class="str">"""对四点排序: [左上, 右上, 右下, 左下]"""</span>
+    rect = np.zeros((<span class="num">4</span>, <span class="num">2</span>), dtype=<span class="str">"float32"</span>)
+    s = pts.sum(axis=<span class="num">1</span>)
+    rect[<span class="num">0</span>] = pts[np.argmin(s)]   <span class="com"># 左上: 和最小</span>
+    rect[<span class="num">2</span>] = pts[np.argmax(s)]   <span class="com"># 右下: 和最大</span>
+    diff = np.diff(pts, axis=<span class="num">1</span>)
+    rect[<span class="num">1</span>] = pts[np.argmin(diff)]  <span class="com"># 右上: 差最小</span>
+    rect[<span class="num">3</span>] = pts[np.argmax(diff)]  <span class="com"># 左下: 差最大</span>
+    <span class="kw">return</span> rect
+
+
+<span class="kw">def</span> <span class="fn">four_point_transform</span>(image, pts):
+    <span class="str">"""四点透视变换，将倾斜车牌校正为矩形"""</span>
+    rect = order_points(pts)
+    tl, tr, br, bl = rect
+    <span class="com"># 计算新图像宽高</span>
+    width_a = np.sqrt((br[<span class="num">0</span>]-bl[<span class="num">0</span>])**<span class="num">2</span> + (br[<span class="num">1</span>]-bl[<span class="num">1</span>])**<span class="num">2</span>)
+    width_b = np.sqrt((tr[<span class="num">0</span>]-tl[<span class="num">0</span>])**<span class="num">2</span> + (tr[<span class="num">1</span>]-tl[<span class="num">1</span>])**<span class="num">2</span>)
+    max_width = <span class="fn">max</span>(<span class="fn">int</span>(width_a), <span class="fn">int</span>(width_b))
+    height_a = np.sqrt((tr[<span class="num">0</span>]-br[<span class="num">0</span>])**<span class="num">2</span> + (tr[<span class="num">1</span>]-br[<span class="num">1</span>])**<span class="num">2</span>)
+    height_b = np.sqrt((tl[<span class="num">0</span>]-bl[<span class="num">0</span>])**<span class="num">2</span> + (tl[<span class="num">1</span>]-bl[<span class="num">1</span>])**<span class="num">2</span>)
+    max_height = <span class="fn">max</span>(<span class="fn">int</span>(height_a), <span class="fn">int</span>(height_b))
+
+    dst = np.array([
+        [<span class="num">0</span>, <span class="num">0</span>], [max_width<span class="num">-1</span>, <span class="num">0</span>],
+        [max_width<span class="num">-1</span>, max_height<span class="num">-1</span>], [<span class="num">0</span>, max_height<span class="num">-1</span>]
+    ], dtype=<span class="str">"float32"</span>)
+
+    m = cv2.getPerspectiveTransform(rect, dst)
+    <span class="kw">return</span> cv2.warpPerspective(image, m, (max_width, max_height))
+
+
+<span class="kw">def</span> <span class="fn">validate_plate_format</span>(plate_text):
+    <span class="str">"""车牌格式校验: 省份(1) + 字母(1) + 字母或数字(5~6)"""</span>
+    <span class="kw">if</span> <span class="kw">not</span> plate_text <span class="kw">or</span> <span class="fn">len</span>(plate_text) &lt; <span class="num">7</span>:
+        <span class="kw">return</span> <span class="kw">False</span>
+    provinces = <span class="kw">list</span>(<span class="str">"京津沪渝冀晋蒙辽吉黑苏浙皖闽赣鲁豫鄂湘粤桂琼川贵云藏陕甘青宁新"</span>)
+    <span class="kw">if</span> plate_text[<span class="num">0</span>] <span class="kw">not in</span> provinces:
+        <span class="kw">return</span> <span class="kw">False</span>
+    letters = <span class="str">"ABCDEFGHJKLMNPQRSTUVWXYZ"</span>
+    <span class="kw">if</span> plate_text[<span class="num">1</span>] <span class="kw">not in</span> letters:
+        <span class="kw">return</span> <span class="kw">False</span>
+    valid = <span class="str">"0123456789ABCDEFGHJKLMNPQRSTUVWXYZ"</span>
+    <span class="kw">return</span> <span class="fn">all</span>(c <span class="kw">in</span> valid <span class="kw">for</span> c <span class="kw">in</span> plate_text[<span class="num">2</span>:])
+</code></pre>
+
+<div class="tip">
+  <strong>关键设计：非侵入式计时装饰器</strong><br>
+  早期版本的 <code class="inline">@timer</code> 会修改函数返回值（追加 elapsed 到 tuple），导致调用链解包全部出错。改进后的版本不修改返回值，而是将计时结果存入实例的 <code class="inline">_timings</code> 字典，干净利落。
+</div>
+
+<!-- ==================== Step 3 ==================== -->
+<h2 id="step3"><span class="step-badge">Step 3</span>图像预处理 preprocess.py</h2>
+
+<div class="card">
+  <div class="card-title">Stage 1 流程</div>
+  <p><strong>输入</strong>: 原始彩色车辆图像 → <strong>输出</strong>: 增强后的灰度图 + 原始彩色图（供颜色定位使用）</p>
+  <ol>
+    <li><strong>灰度化</strong> — Y = 0.299R + 0.587G + 0.114B，为后续滤波做准备</li>
+    <li><strong>双边滤波</strong> — 保边去噪，同时考虑空间距离和像素值差异，保留车牌边缘</li>
+    <li><strong>CLAHE 增强</strong> — 限制对比度自适应直方图均衡化，改善低照度/低对比度图像</li>
+  </ol>
+</div>
+
+<pre><span class="filename">lpr/preprocess.py</span><code><span class="kw">import</span> cv2
+<span class="kw">import</span> numpy <span class="kw">as</span> np
+<span class="kw">from</span> .config <span class="kw">import</span> PREPROCESS_CONFIG
+<span class="kw">from</span> .utils <span class="kw">import</span> timer, to_gray
+
+
+<span class="kw">class</span> <span class="cls">ImagePreprocessor</span>:
+    <span class="str">"""图像预处理器"""</span>
+
+    <span class="kw">def</span> <span class="fn">__init__</span>(self, config=<span class="kw">None</span>):
+        self.config = config <span class="kw">or</span> PREPROCESS_CONFIG
+        self._timings = {}
+
+    <span class="kw">@timer</span>
+    <span class="kw">def</span> <span class="fn">grayscale</span>(self, image):
+        <span class="str">"""灰度化: RGB -> Gray"""</span>
+        <span class="kw">return</span> to_gray(image)
+
+    <span class="kw">@timer</span>
+    <span class="kw">def</span> <span class="fn">bilateral_filter</span>(self, image):
+        <span class="str">"""
+        双边滤波 (保边去噪)
+        - 空间高斯核: 距离越近权重越大
+        - 值域高斯核: 像素值越接近权重越大
+        两者相乘实现"在平坦区域去噪、在边缘保留"的效果
+        """</span>
+        <span class="kw">return</span> cv2.bilateralFilter(
+            image,
+            self.config[<span class="str">"bilateral_d"</span>],          <span class="com"># 邻域直径</span>
+            self.config[<span class="str">"bilateral_sigma_color"</span>],  <span class="com"># 颜色空间标准差</span>
+            self.config[<span class="str">"bilateral_sigma_space"</span>],  <span class="com"># 坐标空间标准差</span>
+        )
+
+    <span class="kw">@timer</span>
+    <span class="kw">def</span> <span class="fn">clahe_enhance</span>(self, gray_image):
+        <span class="str">"""
+        CLAHE: 限制对比度自适应直方图均衡化
+        - 将图像分块 (tile)，每块独立做直方图均衡
+        - 限制对比度增强幅度 (clipLimit)，防止噪声放大
+        - 块间双线性插值，消除块边界
+        """</span>
+        clahe = cv2.createCLAHE(
+            clipLimit=self.config[<span class="str">"clahe_clip_limit"</span>],
+            tileGridSize=self.config[<span class="str">"clahe_grid_size"</span>],
+        )
+        <span class="kw">return</span> clahe.apply(gray_image)
+
+    <span class="kw">def</span> <span class="fn">process</span>(self, image):
+        <span class="str">"""完整预处理流水线"""</span>
+        self._timings = {}
+        color = image.copy()
+        gray = self.grayscale(image)
+        denoised = self.bilateral_filter(gray)
+        enhanced = self.clahe_enhance(denoised)
+        <span class="kw">return</span> {
+            <span class="str">"gray"</span>: gray,
+            <span class="str">"enhanced"</span>: enhanced,
+            <span class="str">"denoised"</span>: denoised,
+            <span class="str">"color"</span>: color,
+            <span class="str">"timing"</span>: <span class="fn">dict</span>(self._timings),
+        }
+</code></pre>
+
+<!-- ==================== Step 4 ==================== -->
+<h2 id="step4"><span class="step-badge">Step 4</span>车牌定位 plate_locator.py</h2>
+
+<div class="card">
+  <div class="card-title">Stage 2 流程 (颜色法)</div>
+  <p><strong>输入</strong>: 彩色图 + 灰度图 → <strong>输出</strong>: 车牌区域坐标</p>
+  <ol>
+    <li><strong>HSV 颜色过滤</strong> — BGR → HSV，用 <code class="inline">inRange()</code> 提取蓝/绿/黄色区域</li>
+    <li><strong>形态学闭操作</strong> — 用宽矩形核 (25×10) 连接字符区域形成连通块</li>
+    <li><strong>轮廓检测</strong> — <code class="inline">findContours()</code> 找到所有外轮廓</li>
+    <li><strong>候选筛选</strong> — 面积、宽高比 (1.5~6.0)、矩形度 三重条件过滤</li>
+    <li><strong>评分选择</strong> — 宽高比接近标准值 3.14 + 矩形度 + 面积 综合评分</li>
+  </ol>
+</div>
+
+<pre><span class="filename">lpr/plate_locator.py</span><code><span class="kw">import</span> cv2
+<span class="kw">import</span> numpy <span class="kw">as</span> np
+<span class="kw">from</span> .config <span class="kw">import</span> PLATE_LOCATOR_CONFIG
+<span class="kw">from</span> .utils <span class="kw">import</span> timer, to_hsv
+
+
+<span class="kw">class</span> <span class="cls">PlateLocator</span>:
+    <span class="str">"""车牌定位器"""</span>
+
+    <span class="kw">def</span> <span class="fn">__init__</span>(self, config=<span class="kw">None</span>):
+        self.config = config <span class="kw">or</span> PLATE_LOCATOR_CONFIG
+        self._timings = {}
+
+    <span class="kw">@timer</span>
+    <span class="kw">def</span> <span class="fn">color_filter</span>(self, hsv_image, plate_type=<span class="str">"blue"</span>):
+        <span class="str">"""
+        HSV 颜色空间过滤
+        蓝牌: H ∈ [100,124], 绿牌: H ∈ [35,99], 黄牌: H ∈ [15,34]
+        """</span>
+        lower = np.array(self.config[<span class="str">f"{plate_type}_lower"</span>])
+        upper = np.array(self.config[<span class="str">f"{plate_type}_upper"</span>])
+        mask = cv2.inRange(hsv_image, lower, upper)
+        <span class="com"># 形态学开操作去噪</span>
+        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (<span class="num">3</span>, <span class="num">3</span>))
+        mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+        <span class="kw">return</span> mask
+
+    <span class="kw">@timer</span>
+    <span class="kw">def</span> <span class="fn">morphological_close</span>(self, binary_image):
+        <span class="str">"""
+        形态学闭操作: 膨胀 -> 腐蚀
+        连接相近区域，填充孔洞，形成连通块
+        宽矩形核 (25x10) 水平方向连接字符
+        """</span>
+        kernel = cv2.getStructuringElement(
+            cv2.MORPH_RECT, self.config[<span class="str">"morph_kernel_size"</span>]
+        )
+        <span class="kw">return</span> cv2.morphologyEx(
+            binary_image, cv2.MORPH_CLOSE, kernel,
+            iterations=self.config[<span class="str">"morph_iterations"</span>]
+        )
+
+    <span class="kw">@timer</span>
+    <span class="kw">def</span> <span class="fn">find_plate_candidates</span>(self, binary_image):
+        <span class="str">"""
+        轮廓检测 + 三重筛选:
+        1. 面积在 [1500, 50000] 范围内
+        2. 宽高比在 [1.5, 6.0] 范围内
+        3. 矩形度 (轮廓面积/外接矩形面积) > 0.3
+        """</span>
+        contours, _ = cv2.findContours(
+            binary_image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+        )
+        candidates = []
+        <span class="kw">for</span> contour <span class="kw">in</span> contours:
+            area = cv2.contourArea(contour)
+            <span class="kw">if</span> <span class="kw">not</span> (self.config[<span class="str">"min_plate_area"</span>] &lt; area &lt; self.config[<span class="str">"max_plate_area"</span>]):
+                <span class="kw">continue</span>
+            rect = cv2.minAreaRect(contour)
+            (cx, cy), (w, h), angle = rect
+            <span class="kw">if</span> w &lt; h: w, h = h, w
+            aspect_ratio = w / h <span class="kw">if</span> h &gt; <span class="num">0</span> <span class="kw">else</span> <span class="num">0</span>
+            <span class="kw">if</span> <span class="kw">not</span> (self.config[<span class="str">"min_aspect_ratio"</span>] &lt; aspect_ratio &lt; self.config[<span class="str">"max_aspect_ratio"</span>]):
+                <span class="kw">continue</span>
+            rect_score = area / (w * h) <span class="kw">if</span> w * h &gt; <span class="num">0</span> <span class="kw">else</span> <span class="num">0</span>
+            <span class="kw">if</span> rect_score &lt; self.config[<span class="str">"min_rect_score"</span>]:
+                <span class="kw">continue</span>
+            box = cv2.boxPoints(rect)
+            x, y, rw, rh = cv2.boundingRect(contour)
+            candidates.append({
+                <span class="str">"box"</span>: np.int0(box), <span class="str">"rect"</span>: (x, y, rw, rh),
+                <span class="str">"center"</span>: (<span class="fn">int</span>(cx), <span class="fn">int</span>(cy)), <span class="str">"size"</span>: (<span class="fn">int</span>(w), <span class="fn">int</span>(h)),
+                <span class="str">"angle"</span>: angle, <span class="str">"area"</span>: area,
+                <span class="str">"aspect_ratio"</span>: aspect_ratio, <span class="str">"rect_score"</span>: rect_score,
+            })
+        <span class="kw">return</span> candidates
+
+    <span class="kw">@timer</span>
+    <span class="kw">def</span> <span class="fn">select_best_candidate</span>(self, candidates):
+        <span class="str">"""
+        综合评分: 宽高比接近度(0.4) + 矩形度(0.3) + 面积(0.3)
+        标准车牌宽高比 = 440mm / 140mm ≈ 3.14
+        """</span>
+        <span class="kw">if</span> <span class="kw">not</span> candidates:
+            <span class="kw">return</span> <span class="kw">None</span>
+        best_score, best = -<span class="num">1</span>, <span class="kw">None</span>
+        target_ratio = <span class="num">3.14</span>
+        <span class="kw">for</span> cand <span class="kw">in</span> candidates:
+            ratio_score = <span class="num">1.0</span> - <span class="fn">abs</span>(cand[<span class="str">"aspect_ratio"</span>] - target_ratio) / target_ratio
+            area_score = <span class="fn">min</span>(cand[<span class="str">"area"</span>] / self.config[<span class="str">"max_plate_area"</span>], <span class="num">1.0</span>)
+            score = ratio_score * <span class="num">0.4</span> + cand[<span class="str">"rect_score"</span>] * <span class="num">0.3</span> + area_score * <span class="num">0.3</span>
+            cand[<span class="str">"score"</span>] = score
+            <span class="kw">if</span> score &gt; best_score:
+                best_score, best = score, cand
+        <span class="kw">return</span> best
+
+    <span class="kw">def</span> <span class="fn">locate</span>(self, color_image, gray_image, method=<span class="str">"color"</span>):
+        <span class="str">"""车牌定位主函数"""</span>
+        self._timings = {}
+        <span class="kw">if</span> method <span class="kw">in</span> (<span class="str">"color"</span>, <span class="str">"multi"</span>):
+            hsv = to_hsv(color_image)
+            mask = self.color_filter_multi(hsv) <span class="kw">if</span> method == <span class="str">"multi"</span> <span class="kw">else</span> self.color_filter(hsv, <span class="str">"blue"</span>)
+        <span class="kw">else</span>:
+            mask = self.sobel_edge(gray_image)
+        closed = self.morphological_close(mask)
+        candidates = self.find_plate_candidates(closed)
+        best = self.select_best_candidate(candidates)
+        <span class="kw">return</span> {
+            <span class="str">"plate_region"</span>: best,
+            <span class="str">"all_candidates"</span>: candidates,
+            <span class="str">"binary"</span>: closed,
+            <span class="str">"method"</span>: method,
+            <span class="str">"timing"</span>: <span class="fn">dict</span>(self._timings),
+        }
+</code></pre>
+
+<div class="tip">
+  <strong>为什么用 HSV 而不是 RGB？</strong><br>
+  RGB 颜色空间中，颜色和亮度耦合在一起，同一蓝色在不同光照下 RGB 值差异很大。HSV 空间将色相 (H) 与亮度 (V) 分离，蓝色始终对应 H ∈ [100, 124]，不受光照变化影响。
+</div>
+
+<!-- ==================== Step 5 ==================== -->
+<h2 id="step5"><span class="step-badge">Step 5</span>倾斜校正 skew_correction.py</h2>
+
+<div class="card">
+  <div class="card-title">Stage 3 流程</div>
+  <p><strong>输入</strong>: 裁剪的车牌图像 → <strong>输出</strong>: 水平校正后的车牌图像</p>
+  <ol>
+    <li><strong>Canny 边缘检测</strong> — 提取车牌区域的边缘</li>
+    <li><strong>Hough 直线检测</strong> — 检测车牌上下边框线</li>
+    <li><strong>角度统计</strong> — 过滤近水平线 (|angle| < 45°)，取中位数作为倾斜角</li>
+    <li><strong>仿射变换</strong> — <code class="inline">getRotationMatrix2D</code> + <code class="inline">warpAffine</code> 旋转校正</li>
+  </ol>
+</div>
+
+<pre><span class="filename">lpr/skew_correction.py</span><code><span class="kw">import</span> cv2
+<span class="kw">import</span> numpy <span class="kw">as</span> np
+<span class="kw">from</span> .config <span class="kw">import</span> SKEW_CORRECTION_CONFIG
+<span class="kw">from</span> .utils <span class="kw">import</span> timer, four_point_transform
+
+
+<span class="kw">class</span> <span class="cls">SkewCorrector</span>:
+    <span class="str">"""车牌倾斜校正器"""</span>
+
+    <span class="kw">def</span> <span class="fn">__init__</span>(self, config=<span class="kw">None</span>):
+        self.config = config <span class="kw">or</span> SKEW_CORRECTION_CONFIG
+        self._timings = {}
+
+    <span class="kw">@timer</span>
+    <span class="kw">def</span> <span class="fn">correct_by_hough</span>(self, plate_image, plate_region=<span class="kw">None</span>):
+        <span class="str">"""
+        Hough 直线检测法倾斜校正
+        1. Canny 边缘检测
+        2. HoughLinesP 检测直线
+        3. 统计近水平线的角度，取中位数
+        4. 仿射变换旋转
+        """</span>
+        gray = cv2.cvtColor(plate_image, cv2.COLOR_BGR2GRAY) <span class="kw">if</span> <span class="fn">len</span>(plate_image.shape) == <span class="num">3</span> <span class="kw">else</span> plate_image.copy()
+        h, w = gray.shape[:<span class="num">2</span>]
+        edges = cv2.Canny(gray, <span class="num">50</span>, <span class="num">150</span>)
+        lines = cv2.HoughLinesP(edges, <span class="num">1</span>, np.pi/<span class="num">180</span>,
+                                threshold=<span class="num">30</span>, minLineLength=<span class="num">20</span>, maxLineGap=<span class="num">5</span>)
+        angles = []
+        <span class="kw">if</span> lines <span class="kw">is not None</span>:
+            <span class="kw">for</span> line <span class="kw">in</span> lines:
+                x1, y1, x2, y2 = line[<span class="num">0</span>]
+                angle = np.degrees(np.arctan2(y2<span class="num">-y1</span>, x2<span class="num">-x1</span>))
+                <span class="kw">if</span> <span class="fn">abs</span>(angle) &lt; <span class="num">45</span> <span class="kw">or</span> <span class="fn">abs</span>(angle) &gt; <span class="num">135</span>:
+                    <span class="kw">if</span> angle &gt; <span class="num">90</span>: angle -= <span class="num">180</span>
+                    <span class="kw">elif</span> angle &lt; -<span class="num">90</span>: angle += <span class="num">180</span>
+                    angles.append(angle)
+        skew_angle = np.median(angles) <span class="kw">if</span> angles <span class="kw">else</span> <span class="num">0</span>
+        skew_angle = np.clip(skew_angle, -<span class="num">20</span>, <span class="num">20</span>)
+        <span class="com"># 仿射变换旋转</span>
+        M = cv2.getRotationMatrix2D((w/<span class="num">2</span>, h/<span class="num">2</span>), skew_angle, <span class="num">1.0</span>)
+        corrected = cv2.warpAffine(plate_image, M, (w, h),
+                                   flags=cv2.INTER_CUBIC,
+                                   borderMode=cv2.BORDER_REPLICATE)
+        <span class="kw">return</span> corrected, skew_angle
+
+    <span class="kw">def</span> <span class="fn">correct</span>(self, plate_image, plate_region=<span class="kw">None</span>, method=<span class="str">"hough"</span>):
+        <span class="str">"""倾斜校正主函数"""</span>
+        self._timings = {}
+        <span class="kw">if</span> <span class="kw">not</span> self.config[<span class="str">"enable"</span>]:
+            <span class="kw">return</span> plate_image, <span class="num">0</span>, {}
+        <span class="kw">if</span> method == <span class="str">"perspective"</span> <span class="kw">and</span> plate_region:
+            corrected, angle = self.correct_by_perspective(plate_image, plate_region)
+        <span class="kw">else</span>:
+            corrected, angle = self.correct_by_hough(plate_image, plate_region)
+        <span class="kw">return</span> corrected, angle, <span class="fn">dict</span>(self._timings)
+</code></pre>
+
+<!-- ==================== Step 6 ==================== -->
+<h2 id="step6"><span class="step-badge">Step 6</span>字符分割 char_segmentation.py</h2>
+
+<div class="card">
+  <div class="card-title">Stage 4 流程</div>
+  <p><strong>输入</strong>: 校正后的车牌图像 → <strong>输出</strong>: 7 个标准化的字符图像 (20×28)</p>
+  <ol>
+    <li><strong>车牌标准化</strong> — 缩放到固定尺寸 240×80，保证后续参数一致</li>
+    <li><strong>去除边框</strong> — 裁剪边缘 8%，去除蓝/黄边框干扰</li>
+    <li><strong>Otsu 二值化</strong> — 自动阈值二值化，统一为黑底白字</li>
+    <li><strong>去噪</strong> — 形态学闭操作 + 连通域分析去小噪声</li>
+    <li><strong>垂直投影分割</strong> — 统计每列白像素数，波谷处切割</li>
+    <li><strong>字符标准化</strong> — 保持比例缩放到 20×28，居中放置</li>
+  </ol>
+</div>
+
+<pre><span class="filename">lpr/char_segmentation.py (核心方法)</span><code><span class="kw">@timer</span>
+<span class="kw">def</span> <span class="fn">segment_by_projection</span>(self, binary_image):
+    <span class="str">"""
+    垂直投影法字符分割
+
+    原理:
+    1. 统计每列白像素总数 → 投影曲线
+    2. 投影值高 = 字符 (波峰)
+    3. 投影值低 = 字符间隙 (波谷)
+    4. 在波谷处切割
+
+         投影图示意:
+         |  ██  █  ██   █  █  ██
+         |  ██  █  ██   █  █  ██
+         |________________________
+          京  A  1   2  3  4  5
+    """</span>
+    h, w = binary_image.shape
+    <span class="com"># 1. 垂直投影: 每列白像素数</span>
+    projection = np.sum(binary_image &gt; <span class="num">0</span>, axis=<span class="num">0</span>).astype(np.float32)
+
+    <span class="com"># 2. 平滑 (减少噪声导致的误分割)</span>
+    projection = cv2.GaussianBlur(
+        projection.reshape(<span class="num">1</span>, -<span class="num">1</span>), (<span class="num">5</span>, <span class="num">1</span>), <span class="num">0</span>
+    ).flatten()
+
+    <span class="com"># 3. 动态阈值</span>
+    threshold = np.max(projection) * self.config[<span class="str">"projection_threshold_ratio"</span>]
+
+    <span class="com"># 4. 寻找连续字符区域</span>
+    in_char = <span class="kw">False</span>
+    char_regions = []
+    <span class="kw">for</span> x <span class="kw">in</span> <span class="fn">range</span>(w):
+        <span class="kw">if</span> projection[x] &gt; threshold:
+            <span class="kw">if</span> <span class="kw">not</span> in_char:
+                in_char = <span class="kw">True</span>
+                start = x
+        <span class="kw">else</span>:
+            <span class="kw">if</span> in_char:
+                in_char = <span class="kw">False</span>
+                <span class="kw">if</span> x - start &gt;= self.config[<span class="str">"min_char_width"</span>]:
+                    char_regions.append((start, x))
+
+    <span class="com"># 5. 分割并处理粘连字符</span>
+    char_images, char_boxes = [], []
+    <span class="kw">for</span> start, end <span class="kw">in</span> char_regions:
+        char_img = binary_image[:, start:end]
+        width = end - start
+        <span class="kw">if</span> width &gt; self.config[<span class="str">"max_char_width"</span>]:
+            <span class="com"># 粘连: 从中间切割</span>
+            mid = width // <span class="num">2</span>
+            char_images.append(char_img[:, :mid])
+            char_images.append(char_img[:, mid:])
+        <span class="kw">else</span>:
+            char_images.append(char_img)
+
+    <span class="kw">return</span> char_images, char_boxes
+
+
+<span class="kw">@timer</span>
+<span class="kw">def</span> <span class="fn">standardize_char</span>(self, char_image):
+    <span class="str">"""
+    字符标准化: 保持宽高比缩放到 20x28，黑色填充居中
+    """</span>
+    target_w, target_h = self.config[<span class="str">"char_resize"</span>]  <span class="com"># (20, 28)</span>
+    h, w = char_image.shape[:<span class="num">2</span>]
+    scale = <span class="fn">min</span>(target_w / w, target_h / h)
+    new_w, new_h = <span class="fn">int</span>(w * scale), <span class="fn">int</span>(h * scale)
+    resized = cv2.resize(char_image, (new_w, new_h), interpolation=cv2.INTER_CUBIC)
+    canvas = np.zeros((target_h, target_w), dtype=np.uint8)
+    x_off = (target_w - new_w) // <span class="num">2</span>
+    y_off = (target_h - new_h) // <span class="num">2</span>
+    canvas[y_off:y_off+new_h, x_off:x_off+new_w] = resized
+    <span class="kw">return</span> canvas
+</code></pre>
+
+<!-- ==================== Step 7 ==================== -->
+<h2 id="step7"><span class="step-badge">Step 7</span>字符识别 char_recognition.py</h2>
+
+<div class="card">
+  <div class="card-title">三种识别方案对比</div>
+  <table>
+    <tr><th>方案</th><th>原理</th><th>训练数据</th><th>准确率</th><th>速度</th><th>适合场景</th></tr>
+    <tr><td><span class="badge badge-green">模板匹配</span></td><td>cv2.matchTemplate 归一化互相关</td><td>无需</td><td>较低 (60-70%)</td><td>快</td><td>开箱即用，课程演示</td></tr>
+    <tr><td><span class="badge badge-yellow">SVM</span></td><td>HOG 特征 + RBF 核 SVM</td><td>少量 (~5000)</td><td>中等 (80-90%)</td><td>中</td><td>传统 ML 方案，实验对比</td></tr>
+    <tr><td><span class="badge badge-red">CNN</span></td><td>2 层卷积网络 + 数据增强</td><td>较多 (~20000)</td><td>高 (95%+)</td><td>慢</td><td>深度学习方案，追高分</td></tr>
+  </table>
+</div>
+
+<pre><span class="filename">lpr/char_recognition.py (核心方法)</span><code><span class="kw">class</span> <span class="cls">CharRecognizer</span>:
+    <span class="str">"""字符识别器: 模板匹配 / SVM / CNN 三选一"""</span>
+
+    <span class="kw">def</span> <span class="fn">__init__</span>(self, config=<span class="kw">None</span>):
+        self.config = config <span class="kw">or</span> CHAR_RECOGNITION_CONFIG
+        self.method = self.config[<span class="str">"method"</span>]
+        self._timings = {}
+        self._load_models()
+
+    <span class="kw">@timer</span>
+    <span class="kw">def</span> <span class="fn">recognize_template</span>(self, char_image, position=<span class="num">0</span>):
+        <span class="str">"""
+        模板匹配识别
+        - position=0: 省份汉字候选集 (31 个)
+        - position=1: 字母候选集 (24 个)
+        - position≥2: 字母+数字候选集 (34 个)
+        """</span>
+        _, char_image = cv2.threshold(char_image, <span class="num">127</span>, <span class="num">255</span>, cv2.THRESH_BINARY)
+
+        <span class="com"># 根据位置选择候选集</span>
+        <span class="kw">if</span> position == <span class="num">0</span>:
+            candidates = self.templates.get(<span class="str">"provinces"</span>, {})
+        <span class="kw">elif</span> position == <span class="num">1</span>:
+            candidates = self.templates.get(<span class="str">"letters"</span>, {})
+        <span class="kw">else</span>:
+            candidates = {**self.templates.get(<span class="str">"letters"</span>, {}),
+                          **self.templates.get(<span class="str">"digits"</span>, {})}
+
+        <span class="com"># 遍历模板，找最佳匹配</span>
+        best_char, best_score = <span class="str">"?"</span>, -<span class="num">1</span>
+        method = <span class="fn">eval</span>(self.config[<span class="str">"template_match_method"</span>])
+        <span class="kw">for</span> char, template <span class="kw">in</span> candidates.items():
+            <span class="kw">if</span> char_image.shape != template.shape:
+                template = cv2.resize(template, (char_image.shape[<span class="num">1</span>], char_image.shape[<span class="num">0</span>]))
+            score = <span class="fn">float</span>(cv2.matchTemplate(char_image, template, method)[<span class="num">0</span>, <span class="num">0</span>])
+            <span class="kw">if</span> score &gt; best_score:
+                best_score, best_char = score, char
+        <span class="kw">return</span> best_char, <span class="fn">max</span>(<span class="num">0.0</span>, <span class="fn">min</span>(<span class="num">1.0</span>, best_score))
+
+    <span class="kw">def</span> <span class="fn">_extract_features</span>(self, char_image):
+        <span class="str">"""
+        HOG + 像素特征 (用于 SVM)
+        HOG: 方向梯度直方图，捕捉字符形状
+        像素: 10x14 降采样，补充全局信息
+        """</span>
+        <span class="kw">if</span> char_image.shape != (<span class="num">28</span>, <span class="num">20</span>):
+            char_image = cv2.resize(char_image, (<span class="num">20</span>, <span class="num">28</span>))
+        hog = cv2.HOGDescriptor(
+            _winSize=(<span class="num">20</span>, <span class="num">28</span>), _blockSize=(<span class="num">10</span>, <span class="num">14</span>),
+            _blockStride=(<span class="num">5</span>, <span class="num">7</span>), _cellSize=(<span class="num">5</span>, <span class="num">7</span>), _nbins=<span class="num">9</span>,
+        )
+        hog_features = hog.compute(char_image).flatten()
+        pixel_features = cv2.resize(char_image, (<span class="num">10</span>, <span class="num">14</span>)).flatten().astype(np.float32) / <span class="num">255.0</span>
+        <span class="kw">return</span> np.concatenate([hog_features, pixel_features])
+
+    <span class="kw">def</span> <span class="fn">recognize_all</span>(self, char_images):
+        <span class="str">"""批量识别字符 → 车牌字符串"""</span>
+        <span class="kw">import</span> time
+        results, details, confidences = [], [], []
+        <span class="kw">for</span> i, char_img <span class="kw">in</span> <span class="fn">enumerate</span>(char_images):
+            start = time.perf_counter()
+            char, conf = self.recognize(char_img, position=i)
+            elapsed = (time.perf_counter() - start) * <span class="num">1000</span>
+            results.append(char)
+            confidences.append(conf)
+            details.append({<span class="str">"position"</span>: i, <span class="str">"char"</span>: char,
+                           <span class="str">"confidence"</span>: conf, <span class="str">"timing"</span>: elapsed})
+        plate_text = <span class="str">""</span>.join(results)
+        avg_conf = <span class="fn">float</span>(np.mean(confidences)) <span class="kw">if</span> confidences <span class="kw">else</span> <span class="num">0.0</span>
+        <span class="kw">return</span> plate_text, details, avg_conf, {}
+
+
+<span class="kw">class</span> <span class="cls">SimpleCharCNN</span>(nn.Module):
+    <span class="str">"""
+    CNN 字符识别网络
+    输入: 3×28×20 (RGB)  输出: 65 类
+    结构: Conv(32) → Pool → Conv(64) → Pool → FC(128) → FC(65)
+    """</span>
+    <span class="kw">def</span> <span class="fn">__init__</span>(self, num_classes=<span class="num">65</span>):
+        <span class="kw">super</span>().__init__()
+        self.features = nn.Sequential(
+            nn.Conv2d(<span class="num">3</span>, <span class="num">32</span>, kernel_size=<span class="num">3</span>, padding=<span class="num">1</span>), nn.ReLU(),
+            nn.MaxPool2d(<span class="num">2</span>),  <span class="com"># 14×10</span>
+            nn.Conv2d(<span class="num">32</span>, <span class="num">64</span>, kernel_size=<span class="num">3</span>, padding=<span class="num">1</span>), nn.ReLU(),
+            nn.MaxPool2d(<span class="num">2</span>),  <span class="com"># 7×5</span>
+        )
+        self.classifier = nn.Sequential(
+            nn.Linear(<span class="num">64</span>*<span class="num">7</span>*<span class="num">5</span>, <span class="num">128</span>), nn.ReLU(), nn.Dropout(<span class="num">0.5</span>),
+            nn.Linear(<span class="num">128</span>, num_classes),
+        )
+
+    <span class="kw">def</span> <span class="fn">forward</span>(self, x):
+        x = self.features(x)
+        x = x.view(x.size(<span class="num">0</span>), -<span class="num">1</span>)
+        <span class="kw">return</span> self.classifier(x)
+</code></pre>
+
+<!-- ==================== Step 8 ==================== -->
+<h2 id="step8"><span class="step-badge">Step 8</span>流水线集成 pipeline.py</h2>
+<p>将五个阶段串联为端到端流水线，统一管理错误处理、计时统计和结果汇总。</p>
+
+<pre><span class="filename">lpr/pipeline.py (核心流程)</span><code><span class="kw">class</span> <span class="cls">LPRPipeline</span>:
+    <span class="str">"""车牌识别流水线"""</span>
+
+    <span class="kw">def</span> <span class="fn">__init__</span>(self, locate_method=<span class="str">"color"</span>, segment_method=<span class="str">"projection"</span>,
+                 recognize_method=<span class="str">"template"</span>, verbose=<span class="kw">False</span>):
+        self.preprocessor = ImagePreprocessor()
+        self.locator = PlateLocator()
+        self.corrector = SkewCorrector()
+        self.segmenter = CharSegmenter()
+        config = CHAR_RECOGNITION_CONFIG.copy()
+        config[<span class="str">"method"</span>] = recognize_method
+        self.recognizer = CharRecognizer(config=config)
+        self.locate_method = locate_method
+        self.segment_method = segment_method
+
+    <span class="kw">def</span> <span class="fn">recognize</span>(self, image_input):
+        <span class="str">"""端到端车牌识别"""</span>
+        total_start = time.perf_counter()
+        result = {<span class="str">"success"</span>: <span class="kw">False</span>, <span class="str">"plate_text"</span>: <span class="str">""</span>, ...}
+
+        <span class="com"># 加载图像</span>
+        image = cv2.imread(image_input) <span class="kw">if</span> <span class="fn">isinstance</span>(image_input, <span class="fn">str</span>) <span class="kw">else</span> image_input.copy()
+        <span class="kw">if</span> image.shape[<span class="num">1</span>] &gt; <span class="num">1280</span>:  <span class="com"># 缩放过大图像</span>
+            image = resize_with_ratio(image, width=<span class="num">1280</span>)
+
+        <span class="com"># Stage 1: 预处理</span>
+        pre = self.preprocessor.process(image)
+
+        <span class="com"># Stage 2: 定位</span>
+        loc = self.locator.locate(pre[<span class="str">"color"</span>], pre[<span class="str">"gray"</span>], method=self.locate_method)
+        <span class="kw">if</span> loc[<span class="str">"plate_region"</span>] <span class="kw">is None</span>:
+            result[<span class="str">"error"</span>] = <span class="str">"未检测到车牌区域"</span>
+            <span class="kw">return</span> result
+
+        <span class="com"># 截取车牌区域 (带边距扩展)</span>
+        x, y, w, h = loc[<span class="str">"plate_region"</span>][<span class="str">"rect"</span>]
+        pad = <span class="fn">max</span>(w, h) // <span class="num">10</span>
+        plate_image = image[<span class="fn">max</span>(<span class="num">0</span>,y-pad):<span class="fn">min</span>(image.shape[<span class="num">0</span>],y+h+pad),
+                            <span class="fn">max</span>(<span class="num">0</span>,x-pad):<span class="fn">min</span>(image.shape[<span class="num">1</span>],x+w+pad)]
+
+        <span class="com"># Stage 3: 倾斜校正</span>
+        corrected, skew_angle, _ = self.corrector.correct(plate_image, loc[<span class="str">"plate_region"</span>])
+
+        <span class="com"># Stage 4: 字符分割</span>
+        seg = self.segmenter.segment(corrected, method=self.segment_method)
+
+        <span class="com"># Stage 5: 字符识别</span>
+        <span class="kw">if</span> seg[<span class="str">"chars"</span>]:
+            plate_text, char_details, avg_conf, _ = self.recognizer.recognize_all(seg[<span class="str">"chars"</span>])
+        <span class="kw">else</span>:
+            plate_text, char_details, avg_conf = <span class="str">""</span>, [], <span class="num">0.0</span>
+
+        <span class="com"># 结果汇总</span>
+        result.update({
+            <span class="str">"success"</span>: <span class="kw">True</span>, <span class="str">"plate_text"</span>: plate_text,
+            <span class="str">"confidence"</span>: avg_conf,
+            <span class="str">"is_valid"</span>: validate_plate_format(plate_text),
+            <span class="str">"plate_image"</span>: plate_image, <span class="str">"corrected_image"</span>: corrected,
+            <span class="str">"char_images"</span>: seg[<span class="str">"chars"</span>],
+            <span class="str">"result_image"</span>: draw_results(image, (x,y,w,h), plate_text),
+            <span class="str">"total_time"</span>: (time.perf_counter() - total_start) * <span class="num">1000</span>,
+        })
+        <span class="kw">return</span> result
+</code></pre>
+
+<!-- ==================== Step 9 ==================== -->
+<h2 id="step9"><span class="step-badge">Step 9</span>Streamlit 可视化界面 app.py</h2>
+<p>提供交互式演示界面，展示每个阶段的中间结果，答辩演示效果好。</p>
+
+<pre><span class="filename">app.py (核心结构)</span><code><span class="kw">import</span> streamlit <span class="kw">as</span> st
+<span class="kw">import</span> cv2, numpy <span class="kw">as</span> np
+<span class="kw">from</span> PIL <span class="kw">import</span> Image
+<span class="kw">from</span> lpr.pipeline <span class="kw">import</span> LPRPipeline
+
+st.set_page_config(page_title=<span class="str">"车牌识别系统"</span>, page_icon=<span class="str">"🚗"</span>, layout=<span class="str">"wide"</span>)
+
+<span class="com"># 侧边栏: 方法选择</span>
+locate_method = st.sidebar.selectbox(<span class="str">"车牌定位方法"</span>, [<span class="str">"color"</span>, <span class="str">"multi"</span>, <span class="str">"edge"</span>])
+segment_method = st.sidebar.selectbox(<span class="str">"字符分割方法"</span>, [<span class="str">"projection"</span>, <span class="str">"connected"</span>])
+recognize_method = st.sidebar.selectbox(<span class="str">"字符识别方法"</span>, [<span class="str">"template"</span>, <span class="str">"svm"</span>, <span class="str">"cnn"</span>])
+
+<span class="com"># 缓存流水线</span>
+<span class="kw">@st.cache_resource</span>
+<span class="kw">def</span> <span class="fn">get_pipeline</span>(loc, seg, rec):
+    <span class="kw">return</span> LPRPipeline(loc, seg, rec)
+
+pipeline = get_pipeline(locate_method, segment_method, recognize_method)
+
+<span class="com"># 上传图片</span>
+uploaded = st.file_uploader(<span class="str">"上传车辆图片"</span>, type=[<span class="str">"png"</span>, <span class="str">"jpg"</span>, <span class="str">"jpeg"</span>])
+
+<span class="kw">if</span> uploaded <span class="kw">and</span> st.button(<span class="str">"开始识别"</span>):
+    image = cv2.imdecode(np.frombuffer(uploaded.read(), np.uint8), cv2.IMREAD_COLOR)
+    result = pipeline.recognize(image)
+
+    <span class="kw">if</span> result[<span class="str">"success"</span>]:
+        <span class="com"># 显示结果</span>
+        col1, col2, col3 = st.columns(<span class="num">3</span>)
+        col1.metric(<span class="str">"车牌号"</span>, result[<span class="str">"plate_text"</span>])
+        col2.metric(<span class="str">"置信度"</span>, <span class="fn">f"{result['confidence']:.1%}"</span>)
+        col3.metric(<span class="str">"总耗时"</span>, <span class="fn">f"{result['total_time']:.0f}ms"</span>)
+
+        <span class="com"># 五个 Tab 展示各阶段中间结果</span>
+        tab1, tab2, tab3, tab4, tab5 = st.tabs([
+            <span class="str">"1.预处理"</span>, <span class="str">"2.定位"</span>, <span class="str">"3.校正"</span>, <span class="str">"4.分割"</span>, <span class="str">"5.识别"</span>
+        ])
+        <span class="com"># ... 各 Tab 展示对应中间结果 ...</span>
+</code></pre>
+
+<pre><code><span class="com"># 启动命令</span>
+streamlit run app.py
+</code></pre>
+
+<!-- ==================== Step 10 ==================== -->
+<h2 id="step10"><span class="step-badge">Step 10</span>数据准备 prepare_ccpd.py</h2>
+
+<div class="card">
+  <div class="card-title">CCPD 数据集准备流程</div>
+  <ol>
+    <li>下载 CCPD 数据集 (30 万+ 张中国车牌图像)</li>
+    <li>解析文件名获取标注信息 (车牌号、四角坐标、边界框)</li>
+    <li>透视变换裁剪车牌区域</li>
+    <li>分割字符并按字符类别保存</li>
+    <li>自动划分训练集 / 验证集 / 测试集 (7:1.5:1.5)</li>
+  </ol>
+</div>
+
+<pre><span class="filename">scripts/prepare_ccpd.py (核心逻辑)</span><code><span class="kw">from</span> lpr.utils <span class="kw">import</span> parse_ccpd_filename
+<span class="kw">from</span> lpr.char_segmentation <span class="kw">import</span> CharSegmenter
+
+<span class="kw">def</span> <span class="fn">crop_plate_from_ccpd</span>(image, annotation):
+    <span class="str">"""使用 CCPD 四角点标注透视变换裁剪车牌"""</span>
+    corners = np.array(annotation[<span class="str">"corners"</span>], dtype=<span class="str">"float32"</span>)
+    <span class="com"># 排序: 左上、右上、右下、左下</span>
+    s = corners.sum(axis=<span class="num">1</span>)
+    ordered = np.zeros((<span class="num">4</span>, <span class="num">2</span>), dtype=<span class="str">"float32"</span>)
+    ordered[<span class="num">0</span>] = corners[np.argmin(s)]   <span class="com"># 左上</span>
+    ordered[<span class="num">2</span>] = corners[np.argmax(s)]   <span class="com"># 右下</span>
+    diff = np.diff(corners, axis=<span class="num">1</span>)
+    ordered[<span class="num">1</span>] = corners[np.argmin(diff)] <span class="com"># 右上</span>
+    ordered[<span class="num">3</span>] = corners[np.argmax(diff)] <span class="com"># 左下</span>
+
+    <span class="com"># 透视变换到 140x40 标准尺寸</span>
+    dst = np.array([[<span class="num">0</span>,<span class="num">0</span>],[<span class="num">139</span>,<span class="num">0</span>],[<span class="num">139</span>,<span class="num">39</span>],[<span class="num">0</span>,<span class="num">39</span>]], dtype=<span class="str">"float32"</span>)
+    M = cv2.getPerspectiveTransform(ordered, dst)
+    <span class="kw">return</span> cv2.warpPerspective(image, M, (<span class="num">140</span>, <span class="num">40</span>))
+
+
+<span class="kw">def</span> <span class="fn">prepare_ccpd</span>(ccpd_dir, output_dir, max_samples=<span class="kw">None</span>):
+    <span class="str">"""主函数: 遍历 CCPD -> 裁剪 -> 分割 -> 保存"""</span>
+    segmenter = CharSegmenter()
+
+    <span class="kw">for</span> img_path <span class="kw">in</span> all_images:
+        <span class="com"># 1. 解析文件名</span>
+        annotation = parse_ccpd_filename(img_path.name)
+        <span class="kw">if</span> annotation <span class="kw">is None</span>: <span class="kw">continue</span>
+
+        <span class="com"># 2. 读取并裁剪</span>
+        image = cv2.imread(<span class="fn">str</span>(img_path))
+        plate = crop_plate_from_ccpd(image, annotation)
+
+        <span class="com"># 3. 分割字符</span>
+        result = segmenter.segment(plate, method=<span class="str">"projection"</span>)
+        <span class="kw">if</span> <span class="fn">len</span>(result[<span class="str">"chars"</span>]) != <span class="fn">len</span>(annotation[<span class="str">"plate_text"</span>]):
+            <span class="kw">continue</span>  <span class="com"># 分割数量不匹配，跳过</span>
+
+        <span class="com"># 4. 保存: output_dir/train/<char>/<idx>.png</span>
+        <span class="kw">for</span> char_img, true_char <span class="kw">in</span> <span class="fn">zip</span>(result[<span class="str">"chars"</span>], annotation[<span class="str">"plate_text"</span>]):
+            char_dir = output_dir / <span class="str">"train"</span> / true_char
+            char_dir.mkdir(parents=<span class="kw">True</span>, exist_ok=<span class="kw">True</span>)
+            cv2.imwrite(<span class="fn">str</span>(char_dir / <span class="fn">f"{idx}.png"</span>), char_img)
+</code></pre>
+
+<pre><code><span class="com"># 使用命令</span>
+python scripts/prepare_ccpd.py --ccpd_dir /path/to/CCPD --output_dir data/ --max_samples 20000
+</code></pre>
+
+<!-- ==================== Step 11 ==================== -->
+<h2 id="step11"><span class="step-badge">Step 11</span>模型训练</h2>
+
+<h3>SVM 训练</h3>
+<pre><span class="filename">scripts/train_svm.py (核心流程)</span><code><span class="kw">from</span> sklearn.svm <span class="kw">import</span> SVC
+<span class="kw">from</span> sklearn.preprocessing <span class="kw">import</span> StandardScaler
+
+<span class="com"># 1. 加载数据</span>
+X_train, y_train = load_dataset(<span class="str">"data/train/"</span>)  <span class="com"># 每个字符一张 20x28 二值图</span>
+
+<span class="com"># 2. 特征提取: HOG + 降采样像素</span>
+features = extract_hog_features(images)  <span class="com"># 每张图 → ~200 维向量</span>
+
+<span class="com"># 3. 标准化</span>
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(features)
+
+<span class="com"># 4. 训练</span>
+svm = SVC(C=<span class="num">10.0</span>, kernel=<span class="str">"rbf"</span>, gamma=<span class="str">"scale"</span>, probability=<span class="kw">True</span>)
+svm.fit(X_scaled, y_train)
+
+<span class="com"># 5. 保存</span>
+pickle.dump({<span class="str">"svm"</span>: svm, <span class="str">"scaler"</span>: scaler}, <span class="fn">open</span>(<span class="str">"models/svm_model.pkl"</span>, <span class="str">"wb"</span>))
+</code></pre>
+
+<pre><code><span class="com"># 使用命令</span>
+python scripts/train_svm.py --data_dir data/ --output models/svm_model.pkl --C 10.0 --kernel rbf
+</code></pre>
+
+<h3>CNN 训练 (含数据增强)</h3>
+<pre><span class="filename">scripts/train_cnn.py (核心流程)</span><code><span class="kw">import</span> torch
+<span class="kw">from</span> lpr.char_recognition <span class="kw">import</span> SimpleCharCNN
+
+<span class="com"># 1. 数据增强: 旋转±10° + 平移 + 缩放 + 噪声</span>
+augmentor = DataAugmentor(rotation_range=<span class="num">10</span>, shift_range=<span class="num">0.1</span>)
+
+<span class="com"># 2. 构建 DataLoader</span>
+train_loader = DataLoader(TensorDataset(X_train, y_train), batch_size=<span class="num">64</span>, shuffle=<span class="kw">True</span>)
+
+<span class="com"># 3. 训练循环</span>
+model = SimpleCharCNN(num_classes=<span class="num">65</span>)
+optimizer = torch.optim.Adam(model.parameters(), lr=<span class="num">0.001</span>)
+criterion = nn.CrossEntropyLoss()
+
+<span class="kw">for</span> epoch <span class="kw">in</span> <span class="fn">range</span>(<span class="num">30</span>):
+    <span class="kw">for</span> batch_x, batch_y <span class="kw">in</span> train_loader:
+        optimizer.zero_grad()
+        loss = criterion(model(batch_x), batch_y)
+        loss.backward()
+        optimizer.step()
+
+<span class="com"># 4. 保存最佳模型</span>
+torch.save(model.state_dict(), <span class="str">"models/cnn_model.pth"</span>)
+</code></pre>
+
+<pre><code><span class="com"># 使用命令</span>
+python scripts/train_cnn.py --data_dir data/ --output models/cnn_model.pth --epochs 30 --batch_size 64
+</code></pre>
+
+<!-- ==================== Step 12 ==================== -->
+<h2 id="step12"><span class="step-badge">Step 12</span>测试评估 evaluate.py</h2>
+
+<pre><span class="filename">scripts/evaluate.py (评估指标)</span><code><span class="com"># 端到端评估指标:</span>
+<span class="com"># - 识别成功率: pipeline 成功输出车牌号的比例</span>
+<span class="com"># - 车牌级准确率: 输出车牌号与真实标签完全一致的比例</span>
+<span class="com"># - 字符级准确率: 逐字符比较的正确率</span>
+<span class="com"># - 平均耗时 / FPS</span>
+
+<span class="com"># 分阶段评估:</span>
+<span class="com"># - 定位准确率: 定位框与真实框 IoU > 阈值的比例</span>
+<span class="com"># - 分割准确率: 分割字符数 == 真实字符数的比例</span>
+<span class="com"># - 识别准确率: 在正确定位+正确分割的前提下，字符完全正确</span>
+
+python scripts/evaluate.py --ccpd_dir /path/to/CCPD --method template --max_samples 1000
+</code></pre>
+
+<pre><code><span class="com">==============================
+评估报告示例
+==============================
+一、端到端评估
+  测试样本总数:  1000
+  识别成功率:    85.20%
+  车牌级准确率:  62.40%
+  字符级准确率:  88.65%
+  平均耗时:      45.3 ms
+
+二、分阶段评估
+  车牌定位准确率:  91.2%
+  字符分割准确率:  78.5%
+  字符识别准确率:  89.3%
+==============================</span>
+</code></pre>
+
+<!-- ==================== 运行指南 ==================== -->
+<h2 id="run">完整运行指南</h2>
+
+<div class="card">
+  <div class="card-title">从零到运行的完整步骤</div>
+  <ol>
+    <li><strong>克隆项目 & 安装依赖</strong>
+      <pre><code>cd 车牌识别系统
+pip install -r requirements.txt</code></pre>
+    </li>
+    <li><strong>方案 A: 快速启动 (模板匹配，无需数据集)</strong>
+      <pre><code><span class="com"># 生成合成模板</span>
+python scripts/generate_templates.py --method synthetic
+
+<span class="com"># 启动 Streamlit 界面</span>
+streamlit run app.py</code></pre>
+    </li>
+    <li><strong>方案 B: 标准课设 (SVM，需要 CCPD 数据集)</strong>
+      <pre><code><span class="com"># 1. 下载 CCPD 数据集 (见 DATASET_GUIDE.md)</span>
+
+<span class="com"># 2. 准备训练数据</span>
+python scripts/prepare_ccpd.py --ccpd_dir /path/to/CCPD --output_dir data/ --max_samples 20000
+
+<span class="com"># 3. 从 CCPD 提取模板 (可选，提升模板匹配效果)</span>
+python scripts/generate_templates.py --method ccpd --ccpd_dir /path/to/CCPD
+
+<span class="com"># 4. 训练 SVM 模型</span>
+python scripts/train_svm.py --data_dir data/ --output models/svm_model.pkl
+
+<span class="com"># 5. 启动界面 (侧边栏选择 SVM)</span>
+streamlit run app.py</code></pre>
+    </li>
+    <li><strong>方案 C: 追高分 (CNN)</strong>
+      <pre><code><span class="com"># 需要更多数据 (建议 50000+ 样本)</span>
+python scripts/prepare_ccpd.py --ccpd_dir /path/to/CCPD --output_dir data/
+
+<span class="com"># 训练 CNN (需要 PyTorch)</span>
+pip install torch torchvision
+python scripts/train_cnn.py --data_dir data/ --output models/cnn_model.pth --epochs 30
+
+<span class="com"># 评估</span>
+python scripts/evaluate.py --ccpd_dir /path/to/CCPD --method cnn --max_samples 1000</code></pre>
+    </li>
+  </ol>
+</div>
+
+<!-- ==================== FAQ ==================== -->
+<h2 id="faq">常见问题</h2>
+
+<div class="warn">
+  <strong>Q: 模板匹配准确率太低怎么办？</strong><br>
+  A: 合成模板只是演示用的。请使用 <code class="inline">generate_templates.py --method ccpd</code> 从 CCPD 数据集提取真实字符模板，准确率会显著提升。
+</div>
+
+<div class="warn">
+  <strong>Q: 车牌定位失败 (未检测到车牌区域)？</strong><br>
+  A: 1) 尝试切换定位方法为 <code class="inline">multi</code> (多颜色联合)；2) 调整 <code class="inline">config.py</code> 中的面积/宽高比阈值；3) 确认图片中车牌占比不要太小。
+</div>
+
+<div class="warn">
+  <strong>Q: 字符分割数量不对 (不是 7 个)？</strong><br>
+  A: 1) 调整 <code class="inline">projection_threshold_ratio</code> (降低会分割出更多区域)；2) 尝试连通域法 <code class="inline">--segment_method connected</code>；3) 检查倾斜校正是否生效。
+</div>
+
+<div class="warn">
+  <strong>Q: CNN 训练报错 "No module named torch"？</strong><br>
+  A: 需要单独安装 PyTorch: <code class="inline">pip install torch torchvision</code>。如果只使用模板匹配或 SVM，不需要安装 PyTorch。
+</div>
+
+<div class="warn">
+  <strong>Q: SVM 模型加载失败？</strong><br>
+  A: SVM 模型需要在 <code class="inline">char_recognition.py</code> 中正确加载。注意 <code class="inline">config.py</code> 中的 <code class="inline">svm_model_path</code> 路径要正确指向 <code class="inline">models/svm_model.pkl</code>。
+</div>
+
+<div style="height:60px;"></div>
+
+</div>
+
+<script>
+  // 侧边栏高亮
+  const sections = document.querySelectorAll('h2[id], h1[id]');
+  const navLinks = document.querySelectorAll('.sidebar a');
+  window.addEventListener('scroll', () => {
+    let current = '';
+    sections.forEach(s => {
+      if (window.scrollY >= s.offsetTop - 100) current = s.id;
+    });
+    navLinks.forEach(a => {
+      a.classList.toggle('active', a.getAttribute('href') === '#' + current);
+    });
+  });
+</script>
+
+</body>
+</html>
